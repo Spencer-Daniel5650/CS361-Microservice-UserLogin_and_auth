@@ -29,3 +29,6 @@ The server runs at:
 http://localhost:8000
 ```
 
+## UML Sequence Diagram:
+<img width="960" height="720" alt="UML User Authentication" src="https://github.com/user-attachments/assets/2ef49e4f-8906-4e19-a518-e67c9b489a61" />
+
