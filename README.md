@@ -29,6 +29,29 @@ The server runs at:
 http://localhost:8000
 ```
 
+## How do I test the microservice?
+
+Open one terminal and start the microservice:
+
+```bash
+source .venv/bin/activate
+python app.py
+```
+
+Open a second terminal and run the demo test program:
+
+```bash
+source .venv/bin/activate
+python demo_client.py
+```
+
+The demo program calls the microservice in this order:
+
+1. `POST /auth/register`
+2. `POST /auth/login`
+3. `GET /auth/role/<user_id>`
+
+
 ## How do I request data?
 
 Other programs request data by sending HTTP requests to the microservice.
