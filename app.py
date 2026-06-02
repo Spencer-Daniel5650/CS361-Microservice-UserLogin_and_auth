@@ -97,20 +97,41 @@ def register():
     )
 
 
+def parse_login_data(request):
+    data = request.get_json(silent=True) or {}
+    return data.get("email", "").strip().lower(), data.get("password", "")
+
+
+def validate_login_data(email, password):
+    if not valid_email(email) or not password:
+        return "Invalid email or password."
+    return None
+
+
+def authenticate_user(email, password):
+    user = find_user_by_email(email)
+    if not user:
+        return None
+    if not check_password_hash(user["password_hash"], password):
+        return None
+    return user
+
+
+def login_error():
+    return make_response("error", "Invalid email or password.", 401)
+
+
 @app.post("/auth/login")
 def login():
-    data = request.get_json(silent=True) or {}
+    email, password = parse_login_data(request)
 
-    email = data.get("email", "").strip().lower()
-    password = data.get("password", "")
+    error = validate_login_data(email, password)
+    if error:
+        return login_error()
 
-    if not valid_email(email) or not password:
-        return make_response("error", "Invalid email or password.", 401)
-
-    user = find_user_by_email(email)
-
-    if not user or not check_password_hash(user["password_hash"], password):
-        return make_response("error", "Invalid email or password.", 401)
+    user = authenticate_user(email, password)
+    if not user:
+        return login_error()
 
     return make_response(
         "success",
