@@ -42,37 +42,50 @@ def home():
 def health():
     return jsonify({"status": "success", "message": "Service is running."})
 
-
-@app.post("/auth/register")
-def register():
+def parse_registration_data(request):
     data = request.get_json(silent=True) or {}
+    return {
+        "name": data.get("name", "").strip(),
+        "email": data.get("email", "").strip().lower(),
+        "password": data.get("password", ""),
+        "role": data.get("role", "user").strip().lower(),
+    }
 
-    name = data.get("name", "").strip()
-    email = data.get("email", "").strip().lower()
-    password = data.get("password", "")
-    role = data.get("role", "user").strip().lower()
 
+def validate_registration_data(name, email, password, role):
     if not name:
-        return make_response("error", "Name is required.", 400)
-
+        return "Name is required."
     if not valid_email(email):
-        return make_response("error", "A valid email is required.", 400)
-
+        return "A valid email is required."
     if not valid_password(password):
-        return make_response("error", "Password must be at least 6 characters.", 400)
-
+        return "Password must be at least 6 characters."
     if role not in ALLOWED_ROLES:
-        return make_response("error", "Role must be admin, manager, or user.", 400)
+        return "Role must be admin, manager, or user."
+    return None
 
-    if find_user_by_email(email):
-        return make_response("error", "Email already exists.", 409)
 
-    user = add_user({
+def create_user_record(name, email, password, role):
+    return add_user({
         "name": name,
         "email": email,
         "password_hash": generate_password_hash(password, method="pbkdf2:sha256"),
         "role": role,
     })
+
+
+@app.post("/auth/register")
+def register():
+    data = parse_registration_data(request)
+    name, email, password, role = data.values()
+
+    error = validate_registration_data(name, email, password, role)
+    if error:
+        return make_response("error", error, 400)
+
+    if find_user_by_email(email):
+        return make_response("error", "Email already exists.", 409)
+
+    user = create_user_record(name, email, password, role)
 
     return make_response(
         "success",
@@ -84,20 +97,41 @@ def register():
     )
 
 
+def parse_login_data(request):
+    data = request.get_json(silent=True) or {}
+    return data.get("email", "").strip().lower(), data.get("password", "")
+
+
+def validate_login_data(email, password):
+    if not valid_email(email) or not password:
+        return "Invalid email or password."
+    return None
+
+
+def authenticate_user(email, password):
+    user = find_user_by_email(email)
+    if not user:
+        return None
+    if not check_password_hash(user["password_hash"], password):
+        return None
+    return user
+
+
+def login_error():
+    return make_response("error", "Invalid email or password.", 401)
+
+
 @app.post("/auth/login")
 def login():
-    data = request.get_json(silent=True) or {}
+    email, password = parse_login_data(request)
 
-    email = data.get("email", "").strip().lower()
-    password = data.get("password", "")
+    error = validate_login_data(email, password)
+    if error:
+        return login_error()
 
-    if not valid_email(email) or not password:
-        return make_response("error", "Invalid email or password.", 401)
-
-    user = find_user_by_email(email)
-
-    if not user or not check_password_hash(user["password_hash"], password):
-        return make_response("error", "Invalid email or password.", 401)
+    user = authenticate_user(email, password)
+    if not user:
+        return login_error()
 
     return make_response(
         "success",
